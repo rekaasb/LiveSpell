@@ -1,5 +1,7 @@
 # 🔍 LiveSpell
-
+[![Firefox add-on](https://img.shields.io/badge/Firefox-Add--on-orange)](https://addons.mozilla.org/ru/firefox/addon/livespell/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/rekaasb/livespell)](https://github.com/rekaasb/livespell/stargazers)
 **Проверка орфографии в реальном времени — бесплатно, без подписок, без сбора данных.**
 
 [![Firefox add-on](https://img.shields.io/badge/Firefox-Add--on-orange)](https://addons.mozilla.org/ru/firefox/addon/livespell/)
