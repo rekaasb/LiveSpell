@@ -1,89 +1,84 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      width: 280px;
-      padding: 15px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-      margin: 0;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    h2 {
-      margin: 0;
-      font-size: 18px;
-      color: #333;
-    }
-    .toggle-btn {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 20px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: bold;
-      transition: all 0.2s;
-    }
-    .toggle-btn.off {
-      background: #f44336;
-    }
-    .toggle-btn:hover {
-      opacity: 0.9;
-      transform: scale(1.02);
-    }
-    .status-text {
-      font-size: 13px;
-      margin-bottom: 15px;
-      padding: 8px;
-      background: #f5f5f5;
-      border-radius: 8px;
-      text-align: center;
-    }
-    .info {
-      font-size: 12px;
-      color: #666;
-      text-align: center;
-      margin-top: 15px;
-      padding-top: 12px;
-      border-top: 1px solid #eee;
-    }
-    .badge {
-      display: inline-block;
-      background: #2196F3;
-      color: white;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h2>📝 LiveSpell</h2>
-    <button id="toggleExtensionBtn" class="toggle-btn">Отключить</button>
-  </div>
+const toggleBtn = document.getElementById('toggleExtensionBtn');
+const statusMsg = document.getElementById('statusMessage');
+
+function updateUI(isEnabled) {
+  if (isEnabled) {
+    toggleBtn.textContent = 'Отключить';
+    toggleBtn.classList.remove('off');
+    statusMsg.innerHTML = '✅ Активен<br><span style="font-size:11px;">Орфография проверяется</span>';
+  } else {
+    toggleBtn.textContent = 'Включить';
+    toggleBtn.classList.add('off');
+    statusMsg.innerHTML = '⏸ Отключен<br><span style="font-size:11px;">Проверка приостановлена</span>';
+  }
+}
+
+async function getStatus() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tabs[0]?.id) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'getStatus' });
+      if (response && typeof response.enabled !== 'undefined') updateUI(response.enabled);
+    } catch (e) {}
+  }
+}
+
+async function toggleExtension() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tabs[0]?.id) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleExtension' });
+      if (response && typeof response.enabled !== 'undefined') updateUI(response.enabled);
+    } catch (e) {}
+  }
+}
+
+// Загрузка и отображение словаря
+async function loadDictionary() {
+  const result = await chrome.storage.local.get(['customDictionary']);
+  const dict = result.customDictionary || [];
+  const dictCount = document.getElementById('dictCount');
+  const dictList = document.getElementById('dictList');
   
-  <div class="status-text" id="statusMessage">
-    ✅ Активен
-  </div>
+  if (dictCount) dictCount.textContent = dict.length;
   
-  <div class="info">
-    🔍 Проверка орфографии в реальном времени<br>
-    Просто начните печатать в любом поле
-  </div>
-  
-  <div style="text-align: center; margin-top: 12px;">
-    <span class="badge">⚡ Работает автоматически</span>
-  </div>
-  
-  <script src="popup.js"></script>
-</body>
-</html>
+  if (dictList) {
+    if (dict.length === 0) {
+      dictList.innerHTML = '<div style="color: #999; text-align: center;">Словарь пуст</div>';
+    } else {
+      dictList.innerHTML = dict.map(word => 
+        `<div class="dict-word">📖 ${escapeHtml(word)}</div>`
+      ).join('');
+    }
+  }
+}
+
+// Очистка словаря
+async function clearDictionary() {
+  if (confirm('Очистить весь пользовательский словарь?')) {
+    await chrome.storage.local.set({ customDictionary: [] });
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]?.id) {
+      try {
+        await chrome.tabs.sendMessage(tabs[0].id, { action: 'clearDictionary' });
+      } catch(e) {}
+    }
+    loadDictionary();
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+}
+
+toggleBtn.addEventListener('click', toggleExtension);
+
+const clearDictBtn = document.getElementById('clearDictBtn');
+if (clearDictBtn) clearDictBtn.addEventListener('click', clearDictionary);
+
+getStatus();
+loadDictionary();
+
+// Обновляем словарь при открытии (на случай изменений на других вкладках)
+setInterval(loadDictionary, 2000);
